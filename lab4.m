@@ -1,52 +1,80 @@
-%Lindeberg (1998): extrema in the Laplacian of Gaussians (LoG).
+%% Lab 4
+%% Color-based segmentation.1
 
-img=imread('sunflowers.png');
-[h,w]=size(img);
+image_files = {"ur_c_s_03a_01_L_0376.png", "ur_c_s_03a_01_L_0377.png", "ur_c_s_03a_01_L_0378.png", ...
+               "ur_c_s_03a_01_L_0379.png", "ur_c_s_03a_01_L_0380.png", "ur_c_s_03a_01_L_0381.png"};
 
-sigma=1;%standard deviation of LoG
-n=10;%number of scales
-scale_space = zeros(h,w,n);
+images_gray = cell(1, 6); % Per immagini in scala di grigi
+images_red = cell(1, 6);  % Per il canale rosso
+images_green = cell(1, 6);% Per il canale verde
+images_blue = cell(1, 6); % Per il canale blu
+images_h = cell(1, 6);  % Per il canale h
+images_s = cell(1, 6);% Per il canale s
+images_v = cell(1, 6); % Per il canale v
+images_seg = cell(1, 6); 
 
-for ii=1:n
-    filt_size =  2*ceil(3*sigma)+1; % filter size
-    LoG       =  sigma^2 * fspecial('log', filt_size, sigma); %scale-normalized Laplacian of Gaussian filter
-    imFiltered = imfilter(img, LoG, 'same', 'replicate');
-    scale_space(:,:,ii)=abs(imFiltered);
+for k = 1:length(image_files)
+    img_k = imread(image_files{k});  % Legge l'immagine originale
     
-    radii(ii)=sigma;
-    sigma=1.5*sigma;
+    % Converti in scala di grigi e salva
+    images_gray{k} = rgb2gray(img_k);
+    
+    % Estrai e salva i singoli canali
+    images_red{k} = img_k(:,:,1);   % Canale Rosso
+    images_green{k} = img_k(:,:,2); % Canale Verde
+    images_blue{k} = img_k(:,:,3);  % Canale Blu
+
+    img_hsv = rgb2hsv(img_k);
+
+    images_h{k} = img_hsv(:,:,1);   % Canale H
+    images_s{k} = img_hsv(:,:,2); % Canale S
+    images_v{k} = img_hsv(:,:,3);  % Canale V
+
 end
 
-%non-maxima suppression in scale-space
-v=2;
-vv=-v:v;
-scale_space_nomax  = zeros(h,w,n);
-for ii=1:n
-    TMP=scale_space(:,:,ii);
-    for hh=(1+v):1*v:(h-v)
-        for ww=(1+v):1*v:(w-v) %non-maxima suppression in 2D spatial slice @fixed scale
-            tmp=TMP(hh+vv,ww+vv);
-            [m,i]=max(tmp(:));
-            a=zeros(length(vv));
-            if m>55, a(i)=m;end
-            TMP(hh+vv,ww+vv)=a;
-            scale_space_nomax(hh+vv,ww+vv,ii)=a;
-        end
-    end
-    v=2*v;
-    vv=-v:v;
+% figure;
+% imshow(images_h{1});
+% title('Prima Immagine in Scala di Grigi');
+
+%% Color-based segmentation.2
+
+%ABBIAMO NOTATO CHE NON CI IMPORTA UN CAZZO
+
+%% Color-based segmentation.3/4
+
+img = images_h{1};
+T=img(390:400, 575:595);
+
+m = mean2(T);
+s = std2(T);
+
+[r,c] = size(img);
+
+%figure
+for k = 1:length(image_files)
+    seg = zeros(r,c);
+    mask = (images_h{k} > (m - s)) & (images_h{k} < (m + s));
+    
+    images_seg{k} = seg + mask;
+  
+    % subplot(2,3,k)
+    % imshow(images_seg{k});
 end
 
-blobs=zeros(h,w); 
-for ii=1:h
-    for jj=1:w
-        tmp=scale_space_nomax(ii,jj,:); %non-maxima suppression in scale 
-        [m,i]=max(tmp);
-        if m>55, blobs(ii,jj)=radii(i);end
-    end
+%% Color-based segmentation.5
+figure 
+for k = 1:length(images_seg)
+
+    prop = regionprops(images_seg{k}, 'Area','Centroid','BoundingBox');
+    xc = floor(prop(1).Centroid(1));
+    yc = floor(prop(1).Centroid(2));
+    disp(yc)
+    ul_corner_width = prop(1).BoundingBox;
+    
+    subplot(2,3,k)
+    imshow(images_seg{k})
+    hold on
+    plot(xc,yc,'*r')
+    rectangle('Position',ul_corner_width,'EdgeColor',[1,0,0])
+
 end
-
-[row,col,val] = find(blobs);
-
-figure
-show_all_circles(img, col, row, 1.41*val, 'r', 1);
