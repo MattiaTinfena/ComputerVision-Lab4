@@ -12,6 +12,7 @@ images_h = cell(1, 6);  % Per il canale h
 images_s = cell(1, 6);% Per il canale s
 images_v = cell(1, 6); % Per il canale v
 images_seg = cell(1, 6); 
+images_seg1 = cell(1, 6);
 
 for k = 1:length(image_files)
     img_k = imread(image_files{k});  % Legge l'immagine originale
@@ -44,19 +45,23 @@ end
 
 img = images_h{1};
 T=img(390:400, 575:595);
+T1=img(350:430, 680:780);
 
 m = mean2(T);
 s = std2(T);
+
+m1 = mean2(T1);
+s1 = std2(T1);
 
 [r,c] = size(img);
 
 %figure
 for k = 1:length(image_files)
-    seg = zeros(r,c);
-    mask = (images_h{k} > (m - s)) & (images_h{k} < (m + s));
-    
-    images_seg{k} = seg + mask;
-  
+
+    mask = (images_h{k} > (m - s)) & (images_h{k} < (m + s));  
+    mask1 = (images_h{k} > (0.97)) & (images_h{k} < (1));
+    images_seg{k} = bwlabel(mask);
+    images_seg1{k} = bwlabel(mask1);
     % subplot(2,3,k)
     % imshow(images_seg{k});
 end
@@ -66,15 +71,30 @@ figure
 for k = 1:length(images_seg)
 
     prop = regionprops(images_seg{k}, 'Area','Centroid','BoundingBox');
-    xc = floor(prop(1).Centroid(1));
-    yc = floor(prop(1).Centroid(2));
-    disp(yc)
-    ul_corner_width = prop(1).BoundingBox;
+    prop1 = regionprops(images_seg1{k}, 'Area','Centroid','BoundingBox');
+
+    % Find the largest blob (dark car)    
+    [~, largest_idx] = max([prop.Area]);
+    centroid = prop(largest_idx).Centroid;    
+    bounding_box = prop(largest_idx).BoundingBox;
     
+    % Find the largest blob (red car)    
+    [~, largest_idx1] = max([prop1.Area]);
+    centroid1 = prop1(largest_idx1).Centroid;
+    bounding_box1 = prop1(largest_idx1).BoundingBox;
+   
+    % subplot(2,3,k)
+    % imshow(images_seg{k})
+    % hold on
+    % plot(centroid(1), centroid(2),'*r')
+    % rectangle('Position',bounding_box,'EdgeColor','r')
+    % hold off
+
     subplot(2,3,k)
-    imshow(images_seg{k})
+    imshow(image_files{k})
     hold on
-    plot(xc,yc,'*r')
-    rectangle('Position',ul_corner_width,'EdgeColor',[1,0,0])
+    plot(centroid1(1), centroid1(2),'*r')
+    rectangle('Position',bounding_box1,'EdgeColor','r')
+    hold off
 
 end
